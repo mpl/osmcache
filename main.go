@@ -83,7 +83,6 @@ func pickServer() string {
 const osmBaseURL = "https://%s.tile.openstreetmap.org"
 
 func fetchTile(url string) error {
-	println("FETCHING " + url)
 	server := pickServer()
 	resp, err := http.Get(fmt.Sprintf(osmBaseURL, server) + url)
 	if err != nil {
@@ -94,7 +93,6 @@ func fetchTile(url string) error {
 	if err != nil {
 		return err
 	}
-	println("WRITING " + filepath.Join(rootdir, url))
 	fullPath := filepath.Join(rootdir, url)
 	if err := os.MkdirAll(filepath.Dir(fullPath), 0700); err != nil {
 		return err
@@ -119,7 +117,6 @@ func serveTile(w http.ResponseWriter, r *http.Request, url string) {
 			return
 		}
 	}
-	println("SERVING " + url)
 	http.ServeFile(w, r, fullPath)
 }
 
