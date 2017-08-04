@@ -3,6 +3,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"html/template"
@@ -11,6 +12,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sync"
 
@@ -80,20 +82,52 @@ func pickServer() string {
 	return servers[lastServer]
 }
 
-const osmBaseURL = "https://%s.tile.openstreetmap.org"
+const (
+	osmBaseURL = "https://%s.tile.openstreetmap.org"
+	userAgent  = "github.com/mpl/osmcache/1.0"
+)
 
 func fetchTile(url string) error {
 	server := pickServer()
-	resp, err := http.Get(fmt.Sprintf(osmBaseURL, server) + url)
+
+	// TODO(mpl): Contact them and figure out what the fuck they want from
+	// me in addition to a user-agent. using curl in the meantime.
+
+	fullPath := filepath.Join(rootdir, url)
+	if err := os.MkdirAll(filepath.Dir(fullPath), 0700); err != nil {
+		return err
+	}
+	fullURL := fmt.Sprintf(osmBaseURL, server) + url
+	cmd := exec.Command("curl", fullURL, "-o", fullPath)
+	if err := cmd.Run(); err != nil {
+		return err
+	}
+	return nil
+
+	req, err := http.NewRequest("GET", fmt.Sprintf(osmBaseURL, server)+url, nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("User-Agent", userAgent)
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return err
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		tile, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return errors.New("no fetchy")
+		}
+		if err := ioutil.WriteFile(filepath.Join(rootdir, "error.dat"), tile, 0700); err != nil {
+			return errors.New("no fetchy")
+		}
+		return errors.New("no fetchy")
+	}
 	tile, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return err
 	}
-	fullPath := filepath.Join(rootdir, url)
 	if err := os.MkdirAll(filepath.Dir(fullPath), 0700); err != nil {
 		return err
 	}
