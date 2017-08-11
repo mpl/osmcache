@@ -29,6 +29,9 @@ var (
 	help         = flag.Bool("h", false, "show this help")
 	flagUserpass = flag.String("userpass", "", "optional username:password protection")
 	flagTLS      = flag.Bool("tls", false, `For https. Uses autocert, or "key.pem" and "cert.pem" in $HOME/keys/`)
+	// TODO(mpl): maybe instead of it being user-provided, embed the osm world view
+	// and serve it as the offline tile?
+	flagOffline = flag.String("offlinetile", "", `if set, serve the given image as the tile when a tile is not found in cache`)
 )
 
 var (
@@ -145,10 +148,14 @@ func serveTile(w http.ResponseWriter, r *http.Request, url string) {
 			log.Print(err)
 			return
 		}
-		if err := fetchTile(url); err != nil {
-			http.Error(w, "nope", 500)
-			log.Print(err)
-			return
+		if *flagOffline != "" {
+			fullPath = *flagOffline
+		} else {
+			if err := fetchTile(url); err != nil {
+				http.Error(w, "nope", 500)
+				log.Print(err)
+				return
+			}
 		}
 	}
 	http.ServeFile(w, r, fullPath)
